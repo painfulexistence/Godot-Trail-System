@@ -1,38 +1,38 @@
-"""
-Author: Oussama BOUKHELF
-License: MIT
-Version: 0.1
-Email: o.boukhelf@gmail.com
-Description: Advanced 2D/3D Trail system.
-"""
+# Author: Oussama BOUKHELF
+# License: MIT
+# Version: 0.1
+# Email: o.boukhelf@gmail.com
+# Description: Advanced 2D/3D Trail system.
 
-extends ImmediateGeometry
+extends MeshInstance3D
 
 
-export(bool) 			var emit := true
-export(float) 			var distance := 0.1
-export(int, 0, 99999)	var segments := 20
-export(float) 			var lifetime := 0.5
-export(float, 0, 99999) var base_width := 0.5
-export(bool)			var tiled_texture := false
-export(int)				var tiling := 0
-export(Curve) 			var width_profile
-export(Gradient)		var color_gradient
-export(int, 0, 3) 		var smoothing_iterations := 0
-export(float, 0, 0.5) 	var smoothing_ratio := 0.25
-export(String, "View", "Normal", "Object") 	var alignment := "View"
-export(String, "X", "Y", "Z") 				var axe := "Y"
-export(bool) 			var show_wireframe := false
-export(Color) 			var wireframe_color := Color(1, 1, 1, 1)
-export(float, 0, 100, 0.1) var wire_line_width := 1.0
+@export var emit: bool = true
+@export var distance: float = 0.1
+@export_range(0, 99999)	var segments: int = 20
+@export var lifetime: float = 0.5
+@export_range(0, 99999) var base_width: float = 0.5
+@export var tiled_texture: bool = false
+@export var tiling: int = 0
+@export var width_profile: Curve
+@export var color_gradient: Gradient
+@export_range(0, 3) var smoothing_iterations: int = 0
+@export_range(0, 0.5) var smoothing_ratio: float = 0.25
+@export_enum("View", "Normal", "Object") var alignment = 0
+@export_enum("X", "Y", "Z") var axe = 1
+@export var show_wireframe: bool = false
+@export var wireframe_color: Color = Color(1, 1, 1, 1)
+@export_range(0, 100, 0.1) var wire_line_width: float = 1.0
 
 var points := []
 var color := Color(1, 1, 1, 1)
 var always_update = false
 
-var _target :Spatial
-var _wire_obj :ImmediateGeometry = ImmediateGeometry.new()
-var _wire_mat :SpatialMaterial   = SpatialMaterial.new()
+var _target :Node3D
+var _mesh :ImmediateMesh = ImmediateMesh.new()
+var _wire_obj :MeshInstance3D = MeshInstance3D.new()
+var _wire_mesh :ImmediateMesh = ImmediateMesh.new()
+var _wire_mat :StandardMaterial3D   = StandardMaterial3D.new()
 var _A: Point
 var _B: Point
 var _C: Point
@@ -41,13 +41,11 @@ var _points := []
 
 
 class Point:
-	"""
-	Class for the 3D point that will be emmited when the object move.
-	"""
-	var transform := Transform()
+	# Class for the 3D point that will be emmited when the object move.
+	var transform := Transform3D()
 	var age       := 0.0
 
-	func _init(transform :Transform, age :float) -> void:
+	func _init(transform :Transform3D,age :float):
 		self.transform = transform
 		self.age = age
 	
@@ -57,50 +55,44 @@ class Point:
 			points.erase(self)
 
 
-func add_point(transform :Transform) -> void:
-	"""
-	Add a point to the list of points.
-	This function is called programmatically.
-	"""
+func add_point(transform :Transform3D) -> void:
+	# Add a point to the list of points.
+	# This function is called programmatically.
 	var point =  Point.new(transform, lifetime)
 	points.push_back(point)
 
 
 func clear_points() -> void:
-	"""
-	Cleat points list.
-	This function is called programmatically.
-	"""
+	# Cleat points list.
+	# This function is called programmatically.
 	points.clear()
 
 
 func _prepare_geometry(point_prev :Point, point :Point, half_width :float, factor :float) -> Array:
-	"""
-	Generate and transform the trail geometry based on the path points that
-	the target object generated.
-	"""
+	# Generate and transform the trail geometry based on the path points that
+	# the target object generated.
 	var normal := Vector3()
 	
-	if alignment == "View":
-		if get_viewport().get_camera():
-			var cam_pos = get_viewport().get_camera().get_global_transform().origin
+	if alignment == 0:
+		if get_viewport().get_camera_3d():
+			var cam_pos = get_viewport().get_camera_3d().get_global_transform().origin
 			var path_direction :Vector3 = (point.transform.origin - point_prev.transform.origin).normalized()
 			normal = (cam_pos - (point.transform.origin + point_prev.transform.origin)/2).cross(path_direction).normalized()
 		else:
 			print("There is no camera in the scene")
 			
-	elif alignment == "Normal":
-		if axe == "X":
+	elif alignment == 1:
+		if axe == 0:
 			normal = point.transform.basis.x.normalized()
-		elif axe == "Y":
+		elif axe == 1:
 			normal = point.transform.basis.y.normalized()
 		else:
 			normal = point.transform.basis.z.normalized()
 	
 	else:
-		if axe == "X":
+		if axe == 0:
 			normal = _target.global_transform.basis.x.normalized()
-		elif axe == "Y":
+		elif axe == 1:
 			normal = _target.global_transform.basis.y.normalized()
 		else:
 			normal = _target.global_transform.basis.z.normalized()
@@ -115,10 +107,8 @@ func _prepare_geometry(point_prev :Point, point :Point, half_width :float, facto
 
 
 func render(update := false) -> void:
-	"""
-	Render the points.
-	This function is called programmatically.
-	"""
+	# Render the points.
+	# This function is called programmatically.
 	if update:
 		always_update = update
 	else:
@@ -126,18 +116,14 @@ func render(update := false) -> void:
 
 
 func _render_realtime() -> void:
-	"""
-	Render the points every frame when "emit" is set to True.
-	"""
+	# Render the points every frame when "emit" is set to True.
 	var render_points = _points+_temp_segment+[_C]
 	_render_geometry(render_points)
 
 
 func _render_geometry(source: Array) -> void:
-	"""
-	Base function for rendering the generated geometry to the screen.
-	Renders the trail, and the wireframe if set in parameters.
-	"""
+	# Base function for rendering the generated geometry to the screen.
+	# Renders the trail, and the wireframe if set in parameters.
 	var points_count = source.size()
 	if points_count < 2:
 		return
@@ -146,7 +132,7 @@ func _render_geometry(source: Array) -> void:
 	# but it may cause an artifact at the end of the trail.
 	# You can use transparency in the gradient to hide it for now.
 	var _d :Vector3 = source[0].transform.origin - source[1].transform.origin
-	var _t :Transform = source[0].transform
+	var _t :Transform3D = source[0].transform
 	_t.origin = _t.origin + _d
 	var point = Point.new(_t, source[0].age)
 	var to_be_rendered = [point]+source
@@ -156,8 +142,8 @@ func _render_geometry(source: Array) -> void:
 	var wire_points = []
 	var u := 0.0
 
-	clear()
-	begin(Mesh.PRIMITIVE_TRIANGLE_STRIP, null)
+	_mesh.clear_surfaces()
+	_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP, null)
 	for i in range(1, points_count):
 		var factor :float = float(i)/(points_count-1)
 
@@ -174,37 +160,35 @@ func _render_geometry(source: Array) -> void:
 				u += travel/base_width
 				factor = u
 
-		set_color(_color)
-		set_uv(Vector2(factor, 0))
-		add_vertex(vertices[0])
-		set_uv(Vector2(factor, 1))
-		add_vertex(vertices[1])
+		_mesh.surface_set_color(_color)
+		_mesh.surface_set_uv(Vector2(factor, 0))
+		_mesh.surface_add_vertex(vertices[0])
+		_mesh.surface_set_uv(Vector2(factor, 1))
+		_mesh.surface_add_vertex(vertices[1])
 
 		if show_wireframe:
 			wire_points += vertices
-	end()
+	_mesh.surface_end()
 
 	# For some reason I had to add a second Meshinstance as a child to make the
 	# wireframe to render, normally you can just draw on top.
 	if show_wireframe:
 		_wire_mat.params_line_width = wire_line_width
-		_wire_obj.clear()
-		_wire_obj.begin(Mesh.PRIMITIVE_LINE_STRIP, null)
-		_wire_obj.set_color(wireframe_color)
-		_wire_obj.set_uv(Vector2(0.5, 0.5))
+		_wire_mesh.clear_surfaces()
+		_wire_mesh.surface_begin(Mesh.PRIMITIVE_LINE_STRIP, null)
+		_wire_mesh.surface_set_color(wireframe_color)
+		_wire_mesh.surface_set_uv(Vector2(0.5, 0.5))
 		for i in range(1, wire_points.size()-2, 2):
 			## order: i-1, i+1, i, i+2
-			_wire_obj.add_vertex(wire_points[i-1])
-			_wire_obj.add_vertex(wire_points[i+1])
-			_wire_obj.add_vertex(wire_points[i])
-			_wire_obj.add_vertex(wire_points[i+2])
-		_wire_obj.end()
+			_wire_mesh.surface_add_vertex(wire_points[i-1])
+			_wire_mesh.surface_add_vertex(wire_points[i+1])
+			_wire_mesh.surface_add_vertex(wire_points[i])
+			_wire_mesh.surface_add_vertex(wire_points[i+2])
+		_wire_mesh.surface_end()
 
 
 func _update_points() -> void:
-	"""
-	Update ages of the points and remove extra ones.
-	"""
+	# Update ages of the points and remove_at extra ones.
 	var delta = get_process_delta_time()
 		
 	_A.update(delta, _points)
@@ -216,16 +200,14 @@ func _update_points() -> void:
 	var size_multiplier = [1, 2, 4, 6][smoothing_iterations]
 	var max_points_count :int = segments * size_multiplier
 	if _points.size() > max_points_count:
-		_points.invert()
+		_points.reverse()
 		_points.resize(max_points_count)
-		_points.invert()
+		_points.reverse()
 
 
 func smooth() -> void:
-	"""
-	Smooth the given path.
-	This function is called programmatically.
-	"""
+	# Smooth the given path.
+	# This function is called programmatically.
 	if points.size() < 3:
 		return
 
@@ -238,14 +220,12 @@ func smooth() -> void:
 
 
 func _chaikin(A, B, C) -> Array:
-	"""
-	Chaikin’s smoothing Algorithm
-	https://www.cs.unc.edu/~dm/UNC/COMP258/LECTURES/Chaikins-Algorithm.pdf
-
-	Ps: I could have avoided a lot of trouble automating this function using FOR loop,
-	but I opted for a more optimized approach which maybe helpful when dealing with a 
-	large amount of objects. 
-	"""
+	# Chaikin’s smoothing Algorithm
+	# https://www.cs.unc.edu/~dm/UNC/COMP258/LECTURES/Chaikins-Algorithm.pdf
+	# 
+	# Ps: I could have avoided a lot of trouble automating this function using FOR loop,
+	# but I opted for a more optimized approach which maybe helpful when dealing with a 
+	# large amount of objects. 
 	if smoothing_iterations == 0:
 		return [B]
 
@@ -257,8 +237,8 @@ func _chaikin(A, B, C) -> Array:
 	var xpa :float = (x*x-2*x+1)
 	var xpb :float = (-x*x+2*x)
 	# transforms
-	var A1_t  :Transform = A.transform.interpolate_with(B.transform, xi)
-	var B1_t  :Transform = B.transform.interpolate_with(C.transform, x)
+	var A1_t  :Transform3D = A.transform.interpolate_with(B.transform, xi)
+	var B1_t  :Transform3D = B.transform.interpolate_with(C.transform, x)
 	# ages
 	var A1_a  :float = lerp(A.age, B.age, xi)
 	var B1_a  :float = lerp(B.age, C.age, x)
@@ -268,10 +248,10 @@ func _chaikin(A, B, C) -> Array:
 
 	else:
 		# transforms
-		var A2_t  :Transform = A.transform.interpolate_with(B.transform, xpa)
-		var B2_t  :Transform = B.transform.interpolate_with(C.transform, xpb)
-		var A11_t :Transform = A1_t.interpolate_with(B1_t, x)
-		var B11_t :Transform = A1_t.interpolate_with(B1_t, xi)
+		var A2_t  :Transform3D = A.transform.interpolate_with(B.transform, xpa)
+		var B2_t  :Transform3D = B.transform.interpolate_with(C.transform, xpb)
+		var A11_t :Transform3D = A1_t.interpolate_with(B1_t, x)
+		var B11_t :Transform3D = A1_t.interpolate_with(B1_t, xi)
 		# ages
 		var A2_a  :float = lerp(A.age, B.age, xpa)
 		var B2_a  :float = lerp(B.age, C.age, xpb)
@@ -283,10 +263,10 @@ func _chaikin(A, B, C) -> Array:
 					Point.new(B11_t, B11_a), Point.new(B2_t, B2_a)]
 		elif smoothing_iterations == 3:
 			# transforms
-			var A12_t  :Transform = A1_t.interpolate_with(B1_t, xpb)
-			var B12_t  :Transform = A1_t.interpolate_with(B1_t, xpa)
-			var A121_t :Transform = A11_t.interpolate_with(A2_t, x)
-			var B121_t :Transform = B11_t.interpolate_with(B2_t, x)
+			var A12_t  :Transform3D = A1_t.interpolate_with(B1_t, xpb)
+			var B12_t  :Transform3D = A1_t.interpolate_with(B1_t, xpa)
+			var A121_t :Transform3D = A11_t.interpolate_with(A2_t, x)
+			var B121_t :Transform3D = B11_t.interpolate_with(B2_t, x)
 			# ages
 			var A12_a  :float = lerp(A1_a, B1_a, xpb)
 			var B12_a  :float = lerp(A1_a, B1_a, xpa)
@@ -299,10 +279,8 @@ func _chaikin(A, B, C) -> Array:
 
 
 func _emit(delta) -> void:
-	"""
-	Adding points to be rendered, called every frame when "emit" is set to True. 
-	"""
-	var _transform :Transform = _target.global_transform
+	# Adding points to be rendered, called every frame when "emit" is set to True. 
+	var _transform :Transform3D = _target.global_transform
 
 	var point = Point.new(_transform, lifetime)
 	if not _A:
@@ -332,11 +310,13 @@ func _ready() -> void:
 	_wire_mat.flags_use_point_size = true
 	_wire_mat.vertex_color_use_as_albedo = true
 	_wire_mat.params_line_width = 10.0
+	_wire_obj.mesh = _wire_mesh
 	_wire_obj.material_override = _wire_mat
-	add_child(_wire_obj)
+	add_child( _wire_obj)
 	
-	set_as_toplevel(true)
-	global_transform = Transform()
+	set_as_top_level(true)
+	global_transform = Transform3D()
+	mesh = _mesh
 
 
 func _process(delta) -> void:

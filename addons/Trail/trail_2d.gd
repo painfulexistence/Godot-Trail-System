@@ -1,19 +1,17 @@
-"""
-Author: Oussama BOUKHELF
-License: MIT
-Version: 0.1
-Email: o.boukhelf@gmail.com
-Description: Advanced 2D/3D Trail system.
-Note: This is a simple implementation, I will update it later on.
-"""
+# Author: Oussama BOUKHELF
+# License: MIT
+# Version: 0.1
+# Email: o.boukhelf@gmail.com
+# Description: Advanced 2D/3D Trail system.
+# Note: This is a simple implementation, I will update it later on.
 
 extends Line2D
 
 
-export(bool) var emit := true
-export(float) var lifetime := 0.5
-export(float) var distance := 20.0
-export(int) var segments := 20
+@export var emit: bool = true
+@export var lifetime: float = 0.5
+@export var distance: float = 20.0
+@export var segments: int = 20
 var target
 
 var trail_points := []
@@ -23,7 +21,7 @@ class Point:
 	var position := Vector2()
 	var age       := 0.0
 
-	func _init(position :Vector2, age :float) -> void:
+	func _init(position :Vector2,age :float):
 		self.position = position
 		self.age = age
 	
@@ -38,7 +36,7 @@ func _ready():
 	show_behind_parent = true
 	target = get_parent()
 	clear_points()
-	set_as_toplevel(true)
+	set_as_top_level(true)
 	position = Vector2()
 
 func _emit():
@@ -59,9 +57,9 @@ func update_points() -> void:
 	var delta = get_process_delta_time()
 		
 	if trail_points.size() > segments:
-		trail_points.invert()
+		trail_points.reverse()
 		trail_points.resize(segments)
-		trail_points.invert()
+		trail_points.reverse()
 	
 	clear_points()
 	for point in trail_points:
